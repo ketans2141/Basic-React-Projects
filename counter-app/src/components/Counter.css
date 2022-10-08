@@ -1,0 +1,60 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body{
+    background-color: #1e272e;
+    height: 100vh;
+}
+
+.container{
+    max-width: 800px;
+    border: 1px solid;
+    border-radius: 20px;
+    background-color: black;
+    border: 1px solid white;
+    padding: 50px;
+    display: flex;
+    flex-direction: column;
+    margin: 250px auto;
+    justify-content: center;
+    align-items: center;
+}
+
+h1{
+    font-size: 8rem;
+    color: white;
+}
+
+button{
+    width: 200px;
+    font-size: 33px;
+    font-weight: 600;
+    padding: 5px;
+    margin: 10px;
+    border:  1px solid white;
+    border-radius: 10px;
+    background-color: #d2dae2;
+}
+
+.incrementBtn{
+    background-color: green;
+}
+
+.decrementBtn{
+    background-color: red;
+}
+
+@media(max-width:850px){
+    .container{
+        width: 600px;
+        text-align: center;
+        padding: 10px;
+    }
+    button{
+        width: 150px;
+        font-size: 23px;
+    }
+}
