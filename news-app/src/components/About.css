@@ -1,0 +1,26 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+._container{
+    margin: 100px auto;
+    max-width: 800px;
+    text-align: center;
+    background-color: black;
+    border: 1px solid white;
+    padding: 10px 0;
+}
+
+.headline{
+    margin: 50px;
+    color:pink;
+    font-size: 23px;
+}
+
+.about_content{
+    color: aliceblue;
+    font-size: 23px;
+    margin: 50px;
+}

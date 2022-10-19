@@ -1,0 +1,22 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+
+.footer {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    background-color: #0c2461;
+    color: white;
+    text-align: center;
+ }
+
+.currentTime{
+    background-color: #0c2461;
+    padding: 20px;
+}
+
