@@ -2,17 +2,20 @@ import React,{useEffect} from "react";
 import { useState } from "react";
 import axios from "axios";
 import "./Home.css"
-// import { Link } from "react-router-dom";
+import Spinner from 'react-bootstrap/Spinner';
+
 export function Home(){
     const [newsData,setNewsData]=useState([])
-    // const [search,setSearch] =useState("");
+    const [loading,setLoading]=useState(false);
     const [filterSearchNews,setFilterSearchNews]=useState([]);
     useEffect(()=>{
         async function getData(){
+            setLoading(true)
             const response = await axios.get(`
             https://newsapi.org/v2/top-headlines?country=us&category=business&apiKey=c1e17df229174b72a2a926b15db10f41`)
             setNewsData(response.data.articles);
             console.log(response.data.articles)
+            setLoading(false)
             setFilterSearchNews([newsData,...response.data.articles])
         }
         getData();
@@ -23,7 +26,12 @@ export function Home(){
         <>
                 <div className="main_Container">
                     {
-                        filterSearchNews.map((item,index)=>{
+                        loading?(
+                            <div className="loadingSection_">
+                            <span className="loading">Loading...</span>
+                            <Spinner animation="border" variant="primary" className="spinner_" />
+                            </div>):
+                        (filterSearchNews.map((item,index)=>{
                             return(
                                 <>
                                 <div className="">
@@ -45,7 +53,7 @@ export function Home(){
                                 </>
                             )
                         })   
-                    }
+                    )}
                     
                 </div>
         </>

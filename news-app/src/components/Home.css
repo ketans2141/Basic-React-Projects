@@ -49,3 +49,14 @@
 /* .readmore_btn_:hover{
     color: red;
 } */
+
+.loadingSection_{
+    max-width: 1000px ;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.spinner_{
+    font-size: 33px;
+    padding: 15px;
+}

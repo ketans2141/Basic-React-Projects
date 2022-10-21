@@ -41,7 +41,7 @@ input{
 
 .container{
     width: 450px;
-    height: 600px;
+    height:580px;
     margin: 20px;
     padding: 20px;
     border: 1px solid black;
@@ -52,20 +52,20 @@ input{
 
 
 h1{
-    font-size: 23px;
+    font-size: 21px;
     text-align: justify;
 }
 
 .news_image{
-    width: 380px;
-    height: 200px;
+    width: 350px;
+    height: 180px;
     margin: 10px;
 }
 
 .content{
     margin-top: 10px;
     color: #1B1464;
-    font-size: 18px;
+    font-size: 14px;
 }
 
 button{
@@ -79,19 +79,28 @@ button{
     color: blue;
     position: absolute;
     bottom: 5px;
-    right: 5px;
+    right: 40px;
     text-decoration: none;
 }
 
+span{
+    font-size: 33px;
+    margin-right: 20px;
+}
 .publish_time{
+    font-size: 16px;
+}
+
+.authorName{
     font-size: 18px;
+    color: darkgreen;
 }
 
 .like_btn{
     font-size: 33px;
     margin: 0;
     position: absolute;
-    bottom: -30px;
+    bottom: -35px;
     left: -10px;
 }
 
@@ -100,7 +109,17 @@ button{
     margin: 5px;
     position: absolute;
     bottom: 5px;
-    left: 60px;
+    left: 220px;
+}
+
+.commentInput{
+    width: 150px;
+    padding: 5px;
+    font-size: 16px;
+    border-radius: 5px;
+    position: absolute;
+    bottom: 10px;
+    left: 70px;
 }
 
 .del_btn{
@@ -108,7 +127,7 @@ button{
     margin: 5px;
     position: absolute;
     bottom: 5px;
-    left: 100px;
+    right: 3px;
 }
 
 hr{
@@ -121,4 +140,21 @@ hr{
     left: 35px;
     font-size: 23px;
     color: red;
+}
+
+.loading{
+    color: red;
+    font-size: 44px;
+    margin-top: 100px;
+}
+
+.loadingSection{
+    max-width: 1000px ;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.spinner{
+    font-size: 33px;
+    padding: 15px;
 }

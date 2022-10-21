@@ -1,0 +1,30 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.commentInput{
+    width: 150px;
+    padding: 5px;
+    font-size: 16px;
+    border-radius: 5px;
+    position: absolute;
+    bottom: 10px;
+    left: 70px;
+}
+
+.comment_btn{
+    font-size: 33px;
+    margin: 5px;
+    position: absolute;
+    bottom: 5px;
+    left: 220px;
+    border: none;
+    background-color: #FDA7DF;
+}
+
+.commentText{
+    color: black;
+    font-size: 16px;
+}
