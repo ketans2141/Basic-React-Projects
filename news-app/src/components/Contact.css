@@ -24,3 +24,9 @@
     margin-bottom: 20px;
     font-size: 33px;
 }
+
+.contactContent{
+    max-width: 1000px;
+    margin: 40px auto 100px auto;
+    text-align: justify;
+}

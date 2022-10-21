@@ -1,6 +1,6 @@
 import React from "react";
 import { useState } from "react";
-import { BiHeart } from "react-icons/bi";
+import { FaHeart } from "react-icons/fa";
 
 export function Like(){
     const [likes,setLikes]=useState(0);
@@ -10,7 +10,7 @@ export function Like(){
     }
     return(
         <>
-            <h1 className="noOfLikes"><BiHeart className="like_btn" onClick={handleLike} />{likes}</h1>
+            <h1 className="noOfLikes"><FaHeart className="like_btn" onClick={handleLike} />{likes}</h1>
         </>
     )
 }

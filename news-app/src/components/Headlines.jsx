@@ -4,7 +4,7 @@ import axios from "axios";
 import "./Home.css"
 import Spinner from 'react-bootstrap/Spinner';
 
-export function Home(){
+export function Headlines(){
     const [newsData,setNewsData]=useState([])
     const [loading,setLoading]=useState(false);
     const [filterSearchNews,setFilterSearchNews]=useState([]);

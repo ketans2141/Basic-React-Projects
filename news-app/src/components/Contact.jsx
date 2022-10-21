@@ -11,7 +11,7 @@ export function Contact(){
             <p className="contactPara">Go to NBCNews.com for breaking news, videos, and the latest top stories in world news, business, politics, health and pop culture.</p>
             </div>
             </div>
-            <div>
+            <div className="contactContent">
                 <h2>Contact Editor</h2>
                 <p className="contactPara">To send an email to an editor at KTN News Digital,<a href="#">please go to this page.</a> </p>
 

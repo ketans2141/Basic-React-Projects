@@ -21,7 +21,8 @@
     bottom: 5px;
     left: 220px;
     border: none;
-    background-color: #FDA7DF;
+    background-color: white;
+    /* background-color: #FDA7DF; */
 }
 
 .commentText{

@@ -5,7 +5,7 @@
 }
 
 .navDiv{
-    background-color: #0c2461;
+    background-color: black;
     color: white;
     width: 100%;
     position: fixed;
@@ -34,17 +34,25 @@ li{
 .link{
     list-style: none;
     text-decoration: none;
-    color: white
+    color: white;
+    font-weight: 600;
+}
+
+.link:hover{
+    color: yellow;
 }
 
 .dark_light_mode{
     font-size: 33px;
-    background-color:black;
+    background-color: black;
+    /* background-color: #dfe6e9; */
     border: 1px solid black;
     border: none;
     width: 50px;
 }
 
 .active{
-    background-color: #dfe6e9;
+    /* background-color: #dfe6e9; */
+    background-color: lightgrey;
+    border: 1px solid black;
 }

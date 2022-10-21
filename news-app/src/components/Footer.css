@@ -10,13 +10,13 @@
     left: 0;
     bottom: 0;
     width: 100%;
-    background-color: #0c2461;
+    background-color: black;
     color: white;
     text-align: center;
  }
 
 .currentTime{
-    background-color: #0c2461;
+    background-color: black;
     padding: 20px;
 }
 
