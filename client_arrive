@@ -1,0 +1,761 @@
+/* client - arrive */
+/* TODO: Setup additional_value_schema */
+/* additional_value_schema for setting vars in request_data before eval 
+
+request_data_additional_value_schema: {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "cargo_value": {
+        "type": "integer"
+    },
+    "pickup_timezone": {
+        "type": "string"
+    },
+    "delivery_timezone": {
+        "type": "string"
+    },
+
+  },
+  "required": []
+}
+
+*/
+
+/* global_var_value_schema for setting global vars before eval 
+
+global_vars_value_schema: {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {},
+  "required": []
+}
+
+*/
+
+/* TODO: Setup the creds_object */
+/* creds_object: keys needed in cadb
+creds_object = {
+    "datastore_username": "credentials-datastore-username",
+    "datastore_password": "credentials-datastore-password",
+    "datastore_token_url": "credentials-datastore-tokenurl"
+}
+*/
+
+var datastore_custom_function_v2 = async function () {
+    /* static definitions start*/
+    const data_object = {};
+    const error_object = {};
+  
+    function get_2_country_code(text) {
+      let country_text = text.toLowerCase();
+      if (country_text.startsWith("u")) return "US";
+      else if (country_text.startsWith("c")) return "CA";
+      else if (country_text.startsWith("m")) return "MX";
+  
+      return text;
+    };
+  
+    function check_if_all_keys_present(cadb_object) {
+      for (let key of Object.keys(cadb_object)) {
+        if (!chatbot_obj.stored_vars[key]) {
+          return false;
+        }
+      }
+      return true;
+    }
+  
+    function add_error_message(field_name, error_message) {
+      if (field_name in error_object) {
+        error_object[field_name].message += ` <> ${error_message}`;
+      } else {
+        error_object[field_name] = {
+          message: error_message.trim(),
+        };
+      }
+    }
+  
+    function is_correct_type(type, value) {
+      switch (type) {
+        case "string":
+          return typeof value === "string";
+  
+        case "integer":
+          return typeof value === "number" && value % 1 === 0;
+  
+        case "float":
+          return typeof value === "number";
+  
+        case "boolean":
+          return typeof value === "boolean";
+  
+        case "null":
+          return value === null;
+  
+        case "array":
+          return Array.isArray(value);
+  
+        case "object":
+          return Object.prototype.toString.call(value) === "[object Object]";
+  
+        default:
+          return false;
+      }
+    }
+  
+    function is_present_if_required(value, is_required) {
+      if (is_required === true && (value === undefined || value === null)) {
+        return false;
+      } else {
+        return true;
+      }
+    }
+  
+    function set_parb_field_default(field_name) {
+      if (!(field_name in datastore_req)) {
+        datastore_req[field_name] = data_fields[field_name]["default_value"];
+      }
+    }
+  
+    /* static definitions end*/
+  
+    /* TODO: Update creds object here */
+    const creds_object = {
+      "datastore_username": "credentials-datastore-username",
+      "datastore_password": "credentials-datastore-password",
+      "datastore_token_url": "credentials-datastore-tokenurl",
+    };
+  
+    /* TODO: Do data manipulations prerequisite for data_object if needed */
+    let tanker_flag = false;
+    let hazmat_flag = false;
+    let team_flag = false;
+    let multistop_flag = false;
+    let pallet_exchange_flag = false;
+  
+    if (request_data?.stops > 2) {
+      multistop_flag = true;
+    }
+  
+    if (request_data?.accessorials?.includes("hazmat")) {
+      hazmat_flag = true;
+    }
+  
+    if (request_data?.accessorials?.includes("tanker_endorsement")) {
+      tanker_flag = true;
+    }
+  
+    if (request_data?.accessorials?.includes("pallet_exchange")) {
+      pallet_exchange_flag = true;
+    }
+  
+    if (transit_related_items_last_pa.includes("team_driver")) {
+      team_flag = true;
+    }
+  
+   
+    /** */
+    let temp_controlled = false;
+    let mode_type = "TL";
+    if (request_data["equipment_type"].includes("reefer")) {
+      temp_controlled = true;
+    }
+  
+    if (request_data["equipment_type"].toLowerCase().includes("_ltl")) {
+        mode_type = "LTL";
+    } else if (request_data["equipment_type"].toLowerCase().includes("_imdl")) {
+        mode_type = "IMDL";
+    }
+    /** */
+  
+    let exclude_array = null;
+    if (global_make_bid === false) {
+      try {
+        let exclude_reason_code = "";
+        let exclude_reason_description = "";
+  
+        exclude_reason_code = decline_msg.split("+")[0].split(": ")[1].trim().split("##")[1].trim();
+        exclude_reason_description = decline_msg.split("+")[0].split(": ")[1].trim().split("##")[2].trim();
+        exclude_array = [{ "ExcludeReasonTypeId": parseInt(exclude_reason_code), "Description": exclude_reason_description,},];
+      } catch (e) {
+        exclude_array = null;
+      }
+    }
+  
+    let surcharge_array = [];
+    if (reasons_str && reasons_str.toLowerCase().includes("post_pa")) {
+      var str_arr = reasons_str.split(";");
+      var base_rate_id = null;
+      if (str_arr.join(" ").includes("Base rate reset by")) {
+        base_rate_id = str_arr.join(" ").split("Base rate reset by ")[1].trim().split(" ")[0];
+      }
+      for (let i = 0; i < str_arr.length; i++) {
+        if (str_arr[i].includes("##") && base_rate_id && str_arr[i].includes(base_rate_id)) {
+          if (parseFloat(base_rate) > 0) {
+            surcharge_array.push({
+              "SurchargeTypeId": parseInt(str_arr[i].split("##")[1].trim()),
+              "Description": str_arr[i].split("##")[2].trim().split("($")[0].trim(),
+              "Amount": parseFloat(base_rate),
+            });
+          }
+        } else if (str_arr[i].includes("##")) {
+          if (parseFloat(str_arr[i].split("##")[2].trim().split("($")[1].trim().replace(")", "")) > 0) {
+            surcharge_array.push({
+              "SurchargeTypeId": parseInt(str_arr[i].split("##")[1].trim()),
+              "Description": str_arr[i].split("##")[2].trim().split("($")[0].trim(),
+              "Amount": parseFloat(str_arr[i].split("##")[2].trim().split("($")[1].trim().replace(")", "")),
+            });
+          }
+        }
+      }
+    } else if (reasons_str) {
+      var str_arr = reasons_str.split("];");
+      var base_rate_id = null;
+      if (str_arr.join(" ").includes("Base rate reset by")) {
+        base_rate_id = str_arr.join(" ").split("Base rate reset by ")[1].trim().split(" ")[0];
+      }
+      for (let i = 0; i < str_arr.length; i++) {
+        if (str_arr[i].includes("##") && base_rate_id && str_arr[i].includes(base_rate_id)) {
+          if (parseFloat(base_rate) > 0) {
+            surcharge_array.push({
+              "SurchargeTypeId": parseInt(str_arr[i].split("##")[1].trim()),
+              "Description": str_arr[i].split("##")[2].trim().split("($")[0].trim(),
+              "Amount": parseFloat(base_rate),
+            });
+          }
+        } else if (str_arr[i].includes("##")) {
+          if (parseFloat(str_arr[i].split("##")[2].trim().split("($")[1].trim().replace(")", "")) > 0
+          ) {
+            surcharge_array.push({
+              "SurchargeTypeId": parseInt(str_arr[i].split("##")[1].trim()),
+              "Description": str_arr[i].split("##")[2].trim().split("($")[0].trim(),
+              "Amount": parseFloat(str_arr[i].split("##")[2].trim().split("($")[1].trim().replace(")", "")),
+            });
+          }
+        }
+      }
+    }
+  
+    if (surcharge_array.length == 0) {
+      surcharge_array = null;
+    }
+  
+    const datastore_make_bid = (global_make_bid ?? false) && !(total_bid_submitted >= 1000000);
+  
+    /** */
+  
+    let stops_info = [];
+  
+    function mapStopInfo(stop_index, cachet_stop_data) {
+      return {
+        City: cachet_stop_data["city"],
+        StateCode: cachet_stop_data["state"],
+        CountryCode: get_2_country_code(cachet_stop_data["country"]),
+        PostalCode: cachet_stop_data["postal_code"],
+        FacilityName: cachet_stop_data["facility_name"],
+        ShipmentId: request_data["load_id"],
+        StopType: parseInt(stop_index) + 1,
+        SequenceNumber: parseInt(stop_index) + 1,
+      };
+    }
+    
+    if (request_data.stops_info && request_data.stops_info.length > 1) {
+      for (let index in request_data["stops_info"]) {
+        stops_info.push(mapStopInfo(index, request_data["stops_info"][index]));
+      }
+    } else {
+      stops_info = [
+        {
+          City: request_data["origin_city"],
+          StateCode: request_data["origin_state"],
+          CountryCode: get_2_country_code(request_data["origin_country"]),
+          PostalCode: request_data["origin_postal_code"],
+          FacilityName: request_data["origin_facility"],
+          ShipmentId: request_data["load_id"],
+          StopType: 1,
+          SequenceNumber: 1,
+        },
+        {
+          City: request_data["destination_city"],
+          StateCode: request_data["destination_state"],
+          CountryCode: get_2_country_code(request_data["destination_country"]),
+          PostalCode: request_data["destination_postal_code"],
+          FacilityName: request_data["destination_facility"],
+          ShipmentId: request_data["load_id"],
+          StopType: 2,
+          SequenceNumber: 2,
+        },
+      ];
+    }
+    
+    console.log("stops_info",stops_info);
+    /** */
+  
+    /* TODO: Setup the data_fields */
+    const data_fields = {
+      ShipmentId: {
+        value: request_data["load_id"],
+        type: "string",
+        default_value: "",
+        required: true,
+        from_parb: false,
+      },
+      Source: {
+        value: 3,
+        type: "integer",
+        default_value: 3,
+        required: true,
+        from_parb: false,
+    },
+    CustomerId: {
+        value: request_data["customer_id"],
+        type: "string",
+        default_value: "",
+        required: true,
+        from_parb: false,
+    },
+      NumberOfStops: {
+        value: request_data["stops"],
+        type: "integer",
+        default_value: 2,
+        required: true,
+        from_parb: false,
+      },
+      ShipperName: {
+        value: actual_account_name,
+        type: "string",
+        default_value: "",
+        required: true,
+        from_parb: false,
+      },
+      Weight: {
+        value: parseInt(request_data["weight"] || 44000),
+        type: "integer",
+        default_value: 44000,
+        required: true,
+        from_parb: false,
+      },
+      Distance: {
+        value: parseInt(parb_total_distance_from_dat_mi || 0) || parseInt(request_data["distance_mi"] || 0) || 1,
+        type: "integer",
+        default_value: 1,
+        required: true,
+        from_parb: false,
+      },
+      Equipment: {
+        value: request_data["equipment_type"],
+        type: "string",
+        default_value: "",
+        required: true,
+        from_parb: false,
+      },
+      IsHazmat: {
+        value: hazmat_flag,
+        type: "boolean",
+        default_value: false,
+        required: true,
+        from_parb: false,
+      },
+      TempControlled: {
+        value: temp_controlled,
+        type: "boolean",
+        default_value: false,
+        required: true,
+        from_parb: false,
+      },
+      PalletExchange: {
+        value: pallet_exchange_flag,
+        type: "boolean",
+        default_value: false,
+        required: true,
+        from_parb: false,
+      },
+      Commodity: {
+        value: request_data["commodity"],
+        type: "string",
+        default_value: "",
+        required: true,
+        from_parb: false,
+      },
+      HaveWeBid: {
+        value: datastore_make_bid,
+        type: "boolean",
+        default_value: false,
+        required: true,
+        from_parb: false,
+      },
+      OurBid: {
+        value: datastore_make_bid && parseFloat(total_bid_submitted ?? 0) > 0 ? parseFloat(total_bid_submitted ?? 0) : null,
+        type: "float",
+        default_value: null,
+        required: true,
+        from_parb: false,
+      },
+      OurBidDate: {
+        value: parseDate(new Date(), "%m/%d/%Y %H:%M"),
+        type: "string",
+        default_value: null,
+        required: true,
+        from_parb: false,
+      },
+      PickupTimeLatest: {
+        value: request_data["pickup_date_time"] !== "" ? parseDate(new Date(request_data["pickup_date_time"]), "%m/%d/%Y %H:%M") : "",
+        type: "string",
+        default_value: "",
+        required: true,
+        from_parb: false,
+      },
+      DeliveryTimeLatest: {
+        value: request_data["delivery_date_time"] !== "" ? parseDate(new Date(request_data["delivery_date_time"]), "%m/%d/%Y %H:%M") : "",
+        type: "string",
+        default_value: "",
+        required: true,
+        from_parb: false,
+      },
+      IsPalletized: {
+        value: pallet_exchange_flag,
+        type: "boolean",
+        default_value: false,
+        required: true,
+        from_parb: false,
+      },
+      IsTeamRequired: {
+        value: team_flag,
+        type: "boolean",
+        default_value: false,
+        required: true,
+        from_parb: false,
+      },
+      CargoValue: {
+        value: request_data["cargo_value"] || 1,
+        type: "integer",
+        default_value: 1,
+        required: true,
+        from_parb: false,
+      },
+      ExcludeReasons: {
+        value: exclude_array,
+        type: "array",
+        default_value: [],
+        required: true,
+        from_parb: false,
+      },
+      Surcharges: {
+        value: surcharge_array,
+        type: "array",
+        default_value: [],
+        required: true,
+        from_parb: false,
+      },
+      PickupTimeZone: {
+        value: request_data["pickup_timezone"],
+        type: "string",
+        default_value: null,
+        required: false,
+        from_parb: false,
+      },
+      DeliveryTimeZone: {
+        value: request_data["delivery_timezone"],
+        type: "string",
+        default_value: null,
+        required: false,
+        from_parb: false,
+      },
+      ModeTypes: {
+        value: mode_type,
+        type: "string",
+        default_value: null,
+        required: false,
+        from_parb: false,
+      },
+      QuoteId: {
+        value: "",
+        type: "string",
+        default_value: "",
+        required: true,
+        from_parb: true,
+      },
+      IsTankerEndorsed: {
+        value: tanker_flag,
+        type: "boolean",
+        default_value: false,
+        required: true,
+        from_parb: false,
+      },
+      Stops: {
+        value: stops_info,
+        type: "array",
+        default_value: [],
+        required: true,
+        from_parb: false,
+      },
+    };
+  
+  
+  
+    /* below fields are getting added by default */
+    /*
+    if("RateExpirationDateTime"in datastore_req){
+      delete datastore_req["RateExpirationDateTime"]
+    }
+  
+    if("v2"in datastore_req){
+      delete datastore_req["v2"]
+    }
+  
+    if("profile"in datastore_req){
+      delete datastore_req["profile"]
+    }
+    */
+    /** */
+  
+    /* TODO: Write Update function. */
+    const update_datastore_object = function update_datastore_object(load_id) {
+      var data = load_id ? $loadboard_data[load_id] : $datastore_helper_object["data"];
+  
+      /* TODO: Update fields */
+      data["OurBid"] = $user_submitted == "" ? null : parseFloat($user_submitted); /* datastore accepts default value as null */
+  
+      if ($bid_submitted > 0 && $user_submitted <= 0) {
+        /* TODO: Update fields for the ones that only need updation if bid recommended but not submitted */
+        data["HaveWeBid"] = false;
+      }
+    }.toString();
+  
+    /* TODO: Write Send function. Remember authentication.*/
+    const send_data_to_datastore = async function send_data_to_datastore_function(load_id, is_delayed = true) {
+      let data = {};
+      let url = "";
+  
+      if (is_delayed) {
+        url = $datastore_helper_object["datastore_url"];
+        data = load_id ? $loadboard_data[load_id] : $datastore_helper_object["data"];
+      } else {
+        url = config["datastore"]["url"];
+        data = datastore_req;
+      }
+  
+      async function fetch_token() {
+        const data = "scope=api_access&grant_type=client_credentials";
+        const auth = btoa($datastore_username + ":" + $datastore_password);
+        var header = (header = {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Authorization": "Basic " + auth,
+        });
+  
+        const handle_failure = function (resp) {
+          send_error_messages_to_dashboad_and_debug_channel("E18: API Error - Datastore API Token Error");
+        };
+  
+        const handle_success = function (resp) {
+          try {
+            const jresp = JSON.parse(resp);
+            const token = jresp["access_token"];
+            $token_arrive_datastore = "Bearer " + token;
+          } catch (error) {
+            handle_failure();
+          }
+        };
+  
+        makePostCall($datastore_token_url, data, header, handle_success, handle_failure);
+      }
+  
+      if ($token_arrive_datastore === undefined) {
+        await fetch_token();
+      }
+  
+      let datastore_call_counter = 0;
+      let datastore_call_failed = true;
+  
+      const handle_success = function (resp) {
+        datastore_call_failed = false;
+      };
+  
+      const handle_failure = async function (resp, status_code, body) {
+        console.log("Failure -- ", resp, status_code, body);
+        console.log("datastore call failed");
+        if (status_code != 430) {
+          send_error_messages_to_dashboad_and_debug_channel("E18: API Error - Datastore API Failed Status Code " + status_code);
+        }
+        if (status_code == 401) {
+          await fetch_token();
+        }
+      };
+  
+      while (datastore_call_counter < 2 && datastore_call_failed) {
+        header = {
+          "Authorization": $token_arrive_datastore,
+          "Content-Type": "application/json",
+        };
+        makePostCall(url, data, header, handle_success, handle_failure, 150, 50000);
+        datastore_call_counter += 1;
+      }
+    }.toString();
+  
+    /* TODOs end here */
+    const send_data_to_datastore_batched = async function send_data_to_datastore_batched() {
+        eval($datastore_helper_object["send_data_to_datastore_function"]);
+        let promises = [];
+        for (const load_id in $loadboard_data) {
+          if (Object.hasOwnProperty.call($loadboard_data, load_id)) {
+            promises.push(send_data_to_datastore_function(load_id));
+          }
+        }
+        await Promise.allSettled(promises);
+      }.toString();
+  
+    if (!check_if_all_keys_present(creds_object)) {
+      await get_credentials_from_cadb(creds_object);
+    }
+  
+    for (const [field_name, field_details] of Object.entries(data_fields)) {
+      const { value, type, default_value, required, from_parb } = field_details;
+  
+      if (from_parb) {
+        set_parb_field_default(field_name);
+        continue;
+      }
+  
+      if (!is_present_if_required(value, required)) {
+        add_error_message(field_name, `${field_name} is a required field. Setting to default ${default_value}`);
+      }
+  
+      if (!is_correct_type(type, value)) {
+        add_error_message(field_name, `${field_name} needs to be of type ${type}`);
+      }
+  
+      data_object[field_name] = field_details["value"] ?? field_details["default_value"];
+    }
+  
+    if (Object.keys(error_object) > 0) {
+      console.error(error_object);
+    }
+  
+    Object.assign(datastore_req, data_object);
+  
+    const datastore_helper_object = {
+      data: datastore_req,
+      datastore_url: config["datastore"]["url"],
+      update_datastore_object_function: update_datastore_object,
+      send_data_to_datastore_function: send_data_to_datastore,
+      send_data_to_datastore_batched_function: send_data_to_datastore_batched,
+      send_data: null,
+    };
+  
+    switch (datastore_ia_argument) {
+      case "custom_datastore":
+        eval(send_data_to_datastore);
+        await send_data_to_datastore_function(undefined, false);
+        break;
+  
+      case "delayed_custom_datastore":
+        datastore_helper_object["send_data"] = send_data_to_datastore;
+        break;
+  
+      case "batched_custom_datastore":
+        /* set loadboard_data for the load */
+        if ($loadboard_data === undefined) {
+          $loadboard_data = {};
+        }
+        $loadboard_data[$unique_load_id_text] = Object.assign({}, datastore_req);
+        datastore_helper_object["send_data"] = send_data_to_datastore_batched;
+        break;
+  
+      default:
+        throw new Error("Invalid datastore type");
+    }
+    return datastore_helper_object;
+  };
+  
+  var fetch_arrive_configuration = async function () {
+    const resp_config_obj = {
+      status: false,
+      message: null,
+      rate_api_code: null,
+      customer_id: null,
+      tms_username: null,
+      tms_password: null,
+    };
+  
+    function check_if_all_keys_present(cadb_object) {
+      for (let key of Object.keys(cadb_object)) {
+        if (!chatbot_obj.stored_vars[key]) {
+          return false;
+        }
+      }
+      return true;
+    }
+  
+    const creds_object = {
+      "config_api_username": "credentials-configapi-username",
+      "config_api_password": "credentials-configapi-password",
+      "config_api_token_url": "credentials-configapi-tokenurl",
+      "config_api_url": "credentials-configapi-url",
+    };
+  
+    if (!check_if_all_keys_present(creds_object)) {
+      await get_credentials_from_cadb(creds_object);
+    }
+  
+    async function fetch_token() {
+      var data = "scope=api_access&grant_type=client_credentials";
+      var auth = btoa($config_api_username + ":" + $config_api_password);
+  
+      var header = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Authorization": "Basic " + auth,
+      };
+      var handle_success = function (resp) {
+        let jresp = JSON.parse(resp);
+        let token_config = jresp["access_token"];
+        $config_arrive_token = "Bearer " + token_config;
+      };
+      makePostCall($config_api_token_url, data, header, handle_success);
+    }
+  
+    await fetch_token();
+  
+    $config_error = "";
+  
+    const header_config = {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Authorization": $config_arrive_token,
+    };
+    const handle_success_config = function (resp) {
+      try {
+        const jresp = JSON.parse(resp);
+        if (jresp["Result"] != null) {
+          resp_config_obj["rate_api_code"] = jresp["Result"]["RateApiCode"];
+          resp_config_obj["customer_id"] = jresp["Result"]["CustomerId"];
+          resp_config_obj["tms_username"] = jresp["Result"]["SpotBoardUserName"];
+          resp_config_obj["tms_password"] = jresp["Result"]["SpotBoardPassword"];
+          resp_config_obj["status"] = true;
+        } else {
+          $config_error = jresp["Message"];
+          resp_config_obj["status"] = false;
+          next_1031 = "error";
+        }
+      } catch (err) {
+        $config_error = err;
+        resp_config_obj["status"] = false;
+        next_1031 = "error";
+      }
+    };
+  
+    var handle_failure = function (message, status_code, body) {
+      try {
+        resp_config_obj["status"] = false;
+        $config_error = message + ",status code: " + status_code;
+      } catch (err) {
+        resp_config_obj["status"] = false;
+        $config_error = err;
+      }
+    };
+  
+    makeGetCall($config_api_url + $customer_code, header_config, handle_success_config, handle_failure);
+  
+    if ($config_error) {
+      resp_config_obj["message"] = $config_error;
+    }
+    return resp_config_obj;
+  };
